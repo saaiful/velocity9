@@ -14,37 +14,27 @@ db.pragma('foreign_keys = ON');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS results (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    download_mbps REAL,
-    upload_mbps   REAL,
-    ping_latency  REAL,
-    ping_jitter   REAL,
-    packet_loss   REAL,
-    isp           TEXT,
-    server_id     TEXT,
-    server_name   TEXT,
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    download_mbps   REAL,
+    upload_mbps     REAL,
+    ping_latency    REAL,
+    ping_jitter     REAL,
+    packet_loss     REAL,
+    isp             TEXT,
+    server_id       TEXT,
+    server_name     TEXT,
     server_location TEXT,
     server_country  TEXT,
-    result_url    TEXT,
-    external_ip   TEXT
+    result_url      TEXT,
+    external_ip     TEXT
   );
 
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT
   );
-`);
 
-{
-  const cols = db.prepare('PRAGMA table_info(servers)').all();
-  const isOldSchema = cols.some(c => c.name === 'port' || c.name === 'provider');
-  if (isOldSchema) {
-    db.exec('DROP TABLE IF EXISTS servers');
-  }
-}
-
-db.exec(`
   CREATE TABLE IF NOT EXISTS servers (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id TEXT NOT NULL UNIQUE,
@@ -62,20 +52,11 @@ db.exec(`
     port       INTEGER NOT NULL DEFAULT 5201,
     enabled    INTEGER NOT NULL DEFAULT 1,
     sort_order INTEGER NOT NULL DEFAULT 0,
+    label      TEXT,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
   );
-`);
 
-db.exec(`
-  DROP TABLE IF EXISTS preferred_servers;
-`);
-
-try {
-  db.exec(`ALTER TABLE monitored_servers ADD COLUMN label TEXT`);
-} catch (_) { }
-
-db.exec(`
   CREATE TABLE IF NOT EXISTS internet_outages (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     detected_at INTEGER NOT NULL,
