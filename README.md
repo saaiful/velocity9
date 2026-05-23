@@ -159,7 +159,7 @@ pm2 reload velocity-9 # Reload the app with zero downtime
 
 Massive shoutout to [Ookla](https://www.ookla.com) and their excellent [Speedtest CLI / API](https://www.speedtest.net/apps/cli) that powers `speedtest-net`.
 
-Speed tests are powered by [Speedtest.net](https://www.speedtest.net) by [Ookla](https://www.ookla.com). Ookla trademarks are used under Ookla's [trademark guidelines](https://www.ookla.com/trademark-guidelines).
+Ookla trademarks are used are property of Ookla or its affiliates. This project is an independent implementation and is not affiliated with or endorsed by Ookla. This is a hobby project built for fun and learning, and should not be used for commercial purposes. For any commercial use or official partnerships, please reach out to Ookla directly.
 
 The name **Velocity 9** is a nod to DC Comics and *The Flash* - a legendary speed-enhancing formula that pushed speedsters beyond all known limits. Just like Barry Allen chasing the lightning, this app is always running.
 
