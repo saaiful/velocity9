@@ -1,0 +1,1080 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Velocity 9</title>
+	<link rel="icon" type="image/svg+xml" href="/icon-dark.svg" media="(prefers-color-scheme: dark)" />
+	<link rel="icon" type="image/svg+xml" href="/icon-light.svg" media="(prefers-color-scheme: light)" />
+	<style>
+		[x-cloak] { display: none !important; }
+	</style>
+	<script>if (localStorage.getItem('theme') === 'light') document.documentElement.classList.remove('dark');</script>
+	<script type="module" src="/main.js"></script>
+</head>
+<body class="bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+	<div x-data="velocity9App" x-init="init()" class="min-h-screen" x-cloak>
+		<header class="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/70 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/70">
+			<div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-3.5">
+				<div class="flex items-center gap-2.5">
+					<img src="/icon-light.svg" class="h-8 w-8 shrink-0 rounded-lg dark:hidden" alt="Velocity 9" width="32" height="32" />
+					<img src="/icon-dark.svg" class="hidden h-8 w-8 shrink-0 rounded-lg dark:block" alt="Velocity 9" width="32" height="32" />
+					<div>
+						<div class="text-sm font-semibold tracking-tight">Velocity 9</div>
+						<div class="-mt-0.5 hidden text-[11px] text-neutral-500 dark:text-neutral-400 sm:block">Multi-server speed monitor</div>
+					</div>
+				</div>
+				<div class="flex items-center gap-1.5 sm:gap-2">
+					<span class="hidden items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium sm:inline-flex"
+						:class="running ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'">
+						<span class="h-1.5 w-1.5 rounded-full" :class="running ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'"></span>
+						<span x-text="running ? 'Monitoring active' : 'Paused'"></span>
+					</span>
+					<span class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-medium sm:gap-1.5 sm:px-2"
+						:class="internetUp ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'">
+						<span class="h-1.5 w-1.5 rounded-full" :class="internetUp ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'"></span>
+						<span class="hidden sm:inline" x-text="internetUp ? 'Internet OK' : 'Offline'"></span>
+					</span>
+					<button
+						type="button"
+						class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 transition hover:bg-neutral-100 dark:border-neutral-800 dark:hover:bg-neutral-900"
+						title="Toggle monitoring"
+						aria-label="Toggle monitoring"
+						:title="running ? 'Pause' : 'Resume'"
+						@click="running = !running"
+					>
+						<i :data-lucide="running ? 'pause' : 'play'" class="h-4 w-4"></i>
+					</button>
+					<button
+						type="button"
+						class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 transition hover:bg-neutral-100 dark:border-neutral-800 dark:hover:bg-neutral-900"
+						title="Toggle theme"
+						aria-label="Toggle theme"
+						@click="toggleDark()"
+					>
+						<i :data-lucide="dark ? 'sun' : 'moon'" class="h-4 w-4"></i>
+					</button>
+					<button
+						type="button"
+						class="ml-1 inline-flex h-9 items-center gap-2 rounded-lg bg-neutral-900 px-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60 dark:bg-white dark:text-neutral-900 sm:px-3.5"
+						title="Run speed test"
+						aria-label="Run speed test"
+						@click="openTestModal()"
+					>
+						<i data-lucide="gauge" class="h-4 w-4" x-show="!testing"></i>
+						<i data-lucide="refresh-cw" class="h-4 w-4 animate-spin" x-show="testing"></i>
+						<span class="hidden sm:inline" x-text="testing ? 'Testing…' : 'Run test'"></span>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<main class="mx-auto max-w-7xl space-y-6 px-4 py-4 sm:space-y-8 sm:px-6">
+
+
+			<section>
+				<div class="mb-4 flex items-end justify-between gap-4">
+					<div>
+						<h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Network performance</h1>
+						<p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+							Aggregate of <span x-text="enabledServers.length"></span> active server<span x-text="enabledServers.length === 1 ? '' : 's'"></span>
+							· last sample <span x-text="lastSampleTime"></span>
+						</p>
+					</div>
+					<button type="button" class="hidden items-center gap-1.5 text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white md:inline-flex">
+						Last 24 hours
+						<i data-lucide="chevron-down" class="h-4 w-4"></i>
+					</button>
+				</div>
+				<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+					<template x-for="stat in statCards" :key="stat.label">
+						<div class="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 dark:border-neutral-800 dark:bg-neutral-900">
+							<div class="flex items-start justify-between">
+								<div>
+									<div class="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400" x-text="stat.label"></div>
+									<div class="mt-3 flex items-baseline gap-1.5">
+										<span class="font-mono text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white sm:text-3xl" x-text="stat.value"></span>
+										<span class="text-sm text-neutral-500 dark:text-neutral-400" x-text="stat.unit"></span>
+									</div>
+									<div class="mt-1 text-xs" :class="stat.deltaTone" x-text="stat.delta"></div>
+								</div>
+								<div class="flex h-10 w-10 items-center justify-center rounded-xl" :class="stat.accent">
+									<i :data-lucide="stat.icon" class="h-5 w-5" :class="stat.iconColor"></i>
+								</div>
+							</div>
+						</div>
+					</template>
+				</div>
+			</section>
+
+			<section>
+				<div class="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-6 dark:border-neutral-800 dark:bg-neutral-900">
+					<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<h2 class="text-base font-semibold tracking-tight">Internet connectivity</h2>
+							<p class="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">ICMP checks to 4 random well-known hosts every <span x-text="pingInterval"></span>s · outage = &lt;75% reachable</p>
+						</div>
+						<div class="flex flex-wrap items-center gap-2">
+							<div class="inline-flex rounded-lg border border-neutral-200 bg-neutral-100 p-0.5 dark:border-neutral-800 dark:bg-neutral-950">
+								<button type="button" title="Timeline view"
+									class="inline-flex h-7 w-7 items-center justify-center rounded-md transition"
+									:class="outageView === 'chart' ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-white' : 'text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'"
+									@click="outageView = 'chart'; $nextTick(() => { renderOutageTimeline(); refreshIcons(); })">
+									<i data-lucide="chart-gantt" class="h-3.5 w-3.5"></i>
+								</button>
+								<button type="button" title="Table view"
+									class="inline-flex h-7 w-7 items-center justify-center rounded-md transition"
+									:class="outageView === 'list' ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-white' : 'text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'"
+									@click="outageView = 'list'; $nextTick(() => refreshIcons())">
+									<i data-lucide="table-2" class="h-3.5 w-3.5"></i>
+								</button>
+							</div>
+
+
+														<div class="relative" @click.outside="outageRangeOpen = false">
+								<button
+									type="button"
+									title="Data range"
+									class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-100 px-2.5 text-xs font-medium text-neutral-600 transition hover:bg-neutral-200 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400 dark:hover:bg-neutral-800"
+									:class="outageRangeOpen ? 'ring-2 ring-neutral-300 dark:ring-neutral-700' : ''"
+									@click="outageRangeOpen = !outageRangeOpen; $nextTick(() => refreshIcons())"
+								>
+									<i data-lucide="calendar-range" class="h-3.5 w-3.5"></i>
+									<span x-text="outageRange === 'custom' ? 'Custom' : outageRange + 'd'"></span>
+								</button>
+
+
+																<div
+									x-show="outageRangeOpen"
+									x-cloak
+									class="absolute right-0 top-10 z-30 w-64 rounded-xl border border-neutral-200 bg-white p-4 shadow-xl dark:border-neutral-800 dark:bg-neutral-900"
+								>
+									<div class="mb-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Data range</div>
+
+
+																		<div class="mb-3 grid grid-cols-5 gap-1">
+										<template x-for="opt in [{v:'1',l:'1d'},{v:'3',l:'3d'},{v:'7',l:'7d'},{v:'14',l:'14d'},{v:'30',l:'30d'}]" :key="opt.v">
+											<button
+												type="button"
+												class="rounded-lg py-1.5 text-xs font-medium transition"
+												:class="outageRange === opt.v ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900' : 'border border-neutral-200 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800'"
+												@click="outageRange = opt.v; loadOutages(); outageRangeOpen = false"
+												x-text="opt.l"
+											></button>
+										</template>
+									</div>
+
+
+																		<div class="mb-3 border-t border-neutral-100 dark:border-neutral-800"></div>
+
+
+																		<button
+										type="button"
+										class="mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-xs font-medium transition"
+										:class="outageRange === 'custom' ? 'border-neutral-900 bg-neutral-50 text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300 hover:text-neutral-700 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-neutral-600'"
+										@click="outageRange = 'custom'; $nextTick(() => refreshIcons())"
+									>
+										<span>Custom range</span>
+										<i data-lucide="calendar-days" class="h-3.5 w-3.5"></i>
+									</button>
+
+									<div x-show="outageRange === 'custom'" class="space-y-2">
+										<div>
+											<label class="mb-1 block text-[10px] font-medium uppercase tracking-wider text-neutral-400">From</label>
+											<input
+												type="date"
+												class="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:focus:ring-white/20"
+												x-model="outageCustomFrom"
+											/>
+										</div>
+										<div>
+											<label class="mb-1 block text-[10px] font-medium uppercase tracking-wider text-neutral-400">To</label>
+											<input
+												type="date"
+												class="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:focus:ring-white/20"
+												x-model="outageCustomTo"
+											/>
+										</div>
+										<button
+											type="button"
+											class="w-full rounded-lg bg-neutral-900 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 dark:bg-white dark:text-neutral-900"
+											@click="loadOutages(); outageRangeOpen = false"
+										>Apply</button>
+									</div>
+								</div>
+							</div>
+
+							<span class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium"
+								:class="internetUp ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'">
+								<span class="h-2 w-2 rounded-full" :class="internetUp ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'"></span>
+								<span x-text="internetUp ? 'Online' : 'Offline'"></span>
+							</span>
+						</div>
+					</div>
+
+					<div x-show="!outages.length" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">No outages recorded — all clear</div>
+
+					<div x-show="outageView === 'chart'">
+						<div class="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800" :class="outages.length ? '' : 'opacity-40'">
+							<div x-init="registerOutageTimelineHost($el)"></div>
+						</div>
+						<p class="mt-2 text-[11px] text-neutral-500 dark:text-neutral-500">
+							<span x-text="outageRange === 'custom' ? 'Custom range' : `Last ${outageRange}d loaded`"></span>
+							· showing last 6h · scroll or pinch to zoom · red bars = outages
+						</p>
+					</div>
+
+					<div x-show="outageView === 'list'" x-cloak>
+						<template x-if="outages.length > 0">
+							<div class="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
+								<table class="w-full text-xs">
+									<thead class="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950">
+										<tr>
+											<th class="px-4 py-2.5 text-left font-medium uppercase tracking-wider text-neutral-500">Detected</th>
+											<th class="px-4 py-2.5 text-left font-medium uppercase tracking-wider text-neutral-500">Restored</th>
+											<th class="px-4 py-2.5 text-left font-medium uppercase tracking-wider text-neutral-500">Duration</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-neutral-100 dark:divide-neutral-800/60">
+										<template x-for="o in outages" :key="o.id">
+											<tr class="bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-800/40">
+												<td class="px-4 py-2 font-mono text-neutral-700 dark:text-neutral-300" x-text="new Date(o.detected_at).toLocaleString()"></td>
+												<td class="px-4 py-2 font-mono text-neutral-700 dark:text-neutral-300" x-text="o.restored_at ? new Date(o.restored_at).toLocaleString() : 'Still down'"></td>
+												<td class="px-4 py-2 font-mono" :class="o.restored_at ? 'text-neutral-700 dark:text-neutral-300' : 'text-red-500 font-semibold'" x-text="o.restored_at ? formatDuration(new Date(o.restored_at) - new Date(o.detected_at)) : 'ongoing'"></td>
+											</tr>
+										</template>
+									</tbody>
+								</table>
+							</div>
+						</template>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<div class="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-6 dark:border-neutral-800 dark:bg-neutral-900">
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+						<div>
+							<h2 class="text-base font-semibold tracking-tight">Speed over time</h2>
+							<p class="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Per-server samples,
+								<span x-text="speedRange === 'custom' ? 'custom range' : speedRange === '1d' ? 'last 24h' : 'last ' + speedRange"></span>
+							</p>
+						</div>
+						<div class="flex items-center gap-2">
+
+														<div class="inline-flex rounded-lg border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-800 dark:bg-neutral-900">
+								<template x-for="metric in ['download', 'upload', 'ping']" :key="metric">
+									<button
+										type="button"
+										class="rounded-md px-3 py-1.5 text-xs font-medium capitalize transition"
+										:class="activeMetric === metric ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white'"
+										@click="activeMetric = metric; $nextTick(() => refreshIcons())"
+										x-text="metric"
+									></button>
+								</template>
+							</div>
+
+
+														<div class="relative" @click.outside="speedRangeOpen = false">
+								<button
+									type="button"
+									title="Data range"
+									class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-100 px-2.5 text-xs font-medium text-neutral-600 transition hover:bg-neutral-200 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400 dark:hover:bg-neutral-800"
+									:class="speedRangeOpen ? 'ring-2 ring-neutral-300 dark:ring-neutral-700' : ''"
+									@click="speedRangeOpen = !speedRangeOpen; $nextTick(() => refreshIcons())"
+								>
+									<i data-lucide="calendar-range" class="h-3.5 w-3.5"></i>
+									<span x-text="speedRange === 'custom' ? 'Custom' : speedRange"></span>
+								</button>
+
+
+																<div
+									x-show="speedRangeOpen"
+									x-cloak
+									class="absolute right-0 top-10 z-30 w-64 rounded-xl border border-neutral-200 bg-white p-4 shadow-xl dark:border-neutral-800 dark:bg-neutral-900"
+								>
+									<div class="mb-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Data range</div>
+
+
+																		<div class="mb-3 grid grid-cols-5 gap-1">
+										<template x-for="opt in [{v:'6h',l:'6h'},{v:'12h',l:'12h'},{v:'1d',l:'1d'},{v:'3d',l:'3d'},{v:'7d',l:'7d'}]" :key="opt.v">
+											<button
+												type="button"
+												class="rounded-lg py-1.5 text-xs font-medium transition"
+												:class="speedRange === opt.v ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900' : 'border border-neutral-200 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800'"
+												@click="speedRange = opt.v; loadData(false); speedRangeOpen = false"
+												x-text="opt.l"
+											></button>
+										</template>
+									</div>
+
+
+																		<div class="mb-3 border-t border-neutral-100 dark:border-neutral-800"></div>
+
+
+																		<button
+										type="button"
+										class="mb-2 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-xs font-medium transition"
+										:class="speedRange === 'custom' ? 'border-neutral-900 bg-neutral-50 text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300 hover:text-neutral-700 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-neutral-600'"
+										@click="speedRange = 'custom'; $nextTick(() => refreshIcons())"
+									>
+										<span>Custom range</span>
+										<i data-lucide="calendar-days" class="h-3.5 w-3.5"></i>
+									</button>
+
+									<div x-show="speedRange === 'custom'" class="space-y-2">
+										<div>
+											<label class="mb-1 block text-[10px] font-medium uppercase tracking-wider text-neutral-400">From</label>
+											<input
+												type="date"
+												class="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:focus:ring-white/20"
+												x-model="speedCustomFrom"
+											/>
+										</div>
+										<div>
+											<label class="mb-1 block text-[10px] font-medium uppercase tracking-wider text-neutral-400">To</label>
+											<input
+												type="date"
+												class="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:focus:ring-white/20"
+												x-model="speedCustomTo"
+											/>
+										</div>
+										<button
+											type="button"
+											class="w-full rounded-lg bg-neutral-900 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 dark:bg-white dark:text-neutral-900"
+											@click="loadData(false); speedRangeOpen = false"
+										>Apply</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="relative h-[22rem] overflow-hidden rounded-xl border border-neutral-200/70 px-4 py-3 dark:border-neutral-800/70 sm:h-80">
+						<div class="h-full w-full" x-init="registerLineChartHost($el)"></div>
+					</div>
+				</div>
+			</section>
+
+			<section class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+				<div class="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-6 dark:border-neutral-800 dark:bg-neutral-900 lg:col-span-2">
+					<div class="mb-5 flex items-center justify-between gap-4">
+						<div>
+							<h2 class="text-base font-semibold tracking-tight">Test servers</h2>
+							<p class="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Servers selected for cron auto-testing</p>
+						</div>
+						<button
+							type="button"
+							class="inline-flex h-8 shrink-0 whitespace-nowrap items-center gap-1.5 rounded-lg border border-neutral-200 px-3 text-xs font-medium transition hover:bg-neutral-100 dark:border-neutral-800 dark:hover:bg-neutral-900"
+							:title="remainingServerCount > 0 ? 'Add another server from the API list' : 'All available servers are already visible'"
+							@click="openServerModal()"
+						>
+							<i data-lucide="plus" class="h-3.5 w-3.5"></i>
+							Add server
+						</button>
+					</div>
+
+					<div class="-mx-2 divide-y divide-neutral-200 overflow-x-hidden dark:divide-neutral-800">
+						<div x-show="!servers.length" x-cloak class="px-2 py-8 text-center">
+							<div class="text-sm font-medium">No auto-test servers selected</div>
+							<div class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">Use Add server to choose from the synced server catalog.</div>
+						</div>
+						<template x-for="server in servers" :key="server.id">
+							<div class="flex flex-col gap-1.5 px-2 py-3 sm:flex-row sm:items-center sm:gap-4">
+								<div class="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+									<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 dark:border-neutral-800" :style="`background:${server.color}1a`">
+										<i data-lucide="server" class="h-4 w-4" :style="`color:${server.color}`"></i>
+									</div>
+									<div class="min-w-0 flex-1 overflow-hidden">
+										<div class="flex items-center gap-1.5 overflow-hidden">
+											<div class="min-w-0 truncate text-sm font-medium" x-text="server.name"></div>
+											<span class="hidden shrink-0 items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 sm:inline-flex">Cron</span>
+											<span x-show="server.host === bgTestHost" class="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+												<i data-lucide="activity" class="h-3 w-3 animate-pulse"></i>
+												Testing…
+											</span>
+										</div>
+										<div class="mt-0.5 flex min-w-0 items-center gap-1.5">
+											<span class="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+												:class="server.status === 'online' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : (server.status === 'degraded' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' : (server.status === 'offline' ? 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400'))">
+												<i :data-lucide="server.status === 'offline' ? 'x-circle' : (server.status === 'unknown' ? 'help-circle' : 'check-circle-2')" class="h-3 w-3"></i>
+												<span x-text="server.status"></span>
+											</span>
+											<div class="min-w-0 truncate font-mono text-xs text-neutral-500 dark:text-neutral-400">
+												<span x-text="server.host"></span> · <span x-text="server.location"></span>
+											</div>
+										</div>
+									</div>
+									<div class="hidden items-center gap-6 text-right font-mono text-xs sm:flex">
+										<div>
+											<div class="text-neutral-400 dark:text-neutral-500">DL</div>
+											<div class="text-neutral-900 dark:text-white"><span x-text="latestByServer(server.id).download"></span> <span class="text-neutral-400">Mbps</span></div>
+										</div>
+										<div>
+											<div class="text-neutral-400 dark:text-neutral-500">UL</div>
+											<div class="text-neutral-900 dark:text-white"><span x-text="latestByServer(server.id).upload"></span> <span class="text-neutral-400">Mbps</span></div>
+										</div>
+										<div>
+											<div class="text-neutral-400 dark:text-neutral-500">Ping</div>
+											<div class="text-neutral-900 dark:text-white"><span x-text="latestByServer(server.id).ping"></span> <span class="text-neutral-400">ms</span></div>
+										</div>
+									</div>
+								</div>
+								<div class="flex items-center gap-2 pl-11 sm:pl-0">
+									<label class="relative inline-flex cursor-pointer items-center">
+										<input type="checkbox" class="peer sr-only" :checked="server.enabled" @change="toggleServer(server.id)" />
+										<div class="h-5 w-9 rounded-full bg-neutral-200 transition after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:border after:border-neutral-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-neutral-900 peer-checked:after:translate-x-4 peer-checked:after:border-white dark:bg-neutral-800 dark:after:border-neutral-700 dark:after:bg-neutral-900 dark:peer-checked:bg-white dark:peer-checked:after:border-neutral-900"></div>
+									</label>
+									<button
+										type="button"
+										class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+										title="View history"
+										@click="openHistoryModal(server)"
+									>
+										<i data-lucide="bar-chart-2" class="h-4 w-4"></i>
+									</button>
+									<button
+										type="button"
+										class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10"
+										:class="testing ? 'opacity-40 cursor-not-allowed' : ''"
+										:disabled="testing"
+										title="Run test now"
+										@click="runTestForServer(server)"
+									>
+										<i data-lucide="play" class="h-4 w-4"></i>
+									</button>
+									<button
+										type="button"
+										class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+										title="Remove"
+										@click="removeServer(server.id)"
+									>
+										<i data-lucide="trash-2" class="h-4 w-4"></i>
+									</button>
+								</div>
+							</div>
+						</template>
+					</div>
+				</div>
+
+				<div class="rounded-2xl border border-neutral-200 bg-white p-4 overflow-x-hidden sm:p-6 dark:border-neutral-800 dark:bg-neutral-900">
+					<div class="mb-4 flex items-center justify-between">
+						<div>
+							<h2 class="text-base font-semibold tracking-tight">Schedule</h2>
+							<p class="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Automated test cadence</p>
+						</div>
+						<i data-lucide="settings" class="h-4 w-4 text-neutral-400"></i>
+					</div>
+
+					<div class="mb-4 flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-950">
+						<div class="flex items-center gap-2.5">
+							<i data-lucide="clock" class="h-4 w-4 text-neutral-500"></i>
+							<div>
+								<div class="text-sm font-medium">Cron monitoring</div>
+								<div class="text-xs text-neutral-500 dark:text-neutral-400">Run tests automatically</div>
+							</div>
+						</div>
+						<label class="relative inline-flex cursor-pointer items-center">
+							<input type="checkbox" class="peer sr-only" x-model="cronEnabled" aria-label="Enable cron monitoring" title="Enable cron monitoring" />
+							<div class="h-5 w-9 rounded-full bg-neutral-200 transition after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:border after:border-neutral-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-neutral-900 peer-checked:after:translate-x-4 dark:bg-neutral-800 dark:after:border-neutral-700 dark:after:bg-neutral-900 dark:peer-checked:bg-white"></div>
+						</label>
+					</div>
+
+					<div class="mb-4 inline-flex w-full rounded-lg border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-800 dark:bg-neutral-950">
+						<button
+							type="button"
+							class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition"
+							:class="cronMode === 'simple' ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'"
+							@click="cronMode = 'simple'"
+						>
+							simple
+						</button>
+						<button
+							type="button"
+							class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition"
+							:class="cronMode === 'advanced' ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'"
+							@click="cronMode = 'advanced'"
+						>
+							advanced
+						</button>
+					</div>
+
+					<div x-show="cronMode === 'simple'" x-cloak class="space-y-4">
+						<div>
+							<label class="text-xs font-medium text-neutral-600 dark:text-neutral-400">Run every</label>
+							<div class="mt-1.5 grid grid-cols-4 gap-1.5">
+								<template x-for="option in cronOptions" :key="option.v">
+									<button
+										type="button"
+										class="rounded-md border px-2 py-1.5 text-xs font-medium transition"
+										:class="cronInterval === option.v ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900' : 'border-neutral-200 hover:bg-neutral-100 dark:border-neutral-800 dark:hover:bg-neutral-900'"
+										@click="selectCron(option.v)"
+										x-text="option.l"
+									></button>
+								</template>
+							</div>
+						</div>
+					</div>
+
+					<div x-show="cronMode === 'advanced'" x-cloak>
+						<label class="text-xs font-medium text-neutral-600 dark:text-neutral-400">Cron expression</label>
+						<input
+							x-model="cronExpr"
+							class="mt-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:border-neutral-800 dark:bg-neutral-950 dark:focus:ring-white"
+							placeholder="*/30 * * * *"
+						/>
+						<div class="mt-2 font-mono text-[11px] text-neutral-500 dark:text-neutral-400">min · hour · day · month · weekday</div>
+					</div>
+
+					<div class="mt-5 space-y-4 border-t border-neutral-200 pt-5 dark:border-neutral-800">
+						<div>
+							<label class="text-xs font-medium text-neutral-600 dark:text-neutral-400">Retain history</label>
+							<div class="mt-1.5 flex items-center gap-2">
+								<input
+									x-model="retainDays"
+									aria-label="Retain history in days"
+									title="Retain history in days"
+									placeholder="30"
+									class="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:border-neutral-800 dark:bg-neutral-950 dark:focus:ring-white"
+								/>
+								<span class="text-xs text-neutral-500">days</span>
+							</div>
+						</div>
+
+						<div class="rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-950">
+							<div class="text-[11px] font-medium uppercase tracking-wider text-neutral-500">Next run</div>
+							<div class="mt-1 font-mono text-sm" x-text="cronEnabled ? `in ~${cronInterval} min · ${enabledServers.length} servers` : 'paused'"></div>
+						</div>
+
+						<button type="button" class="mb-3 flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 text-sm font-medium transition hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900" @click="savePingInterval()">
+								<i data-lucide="wifi" class="h-3.5 w-3.5 text-neutral-400"></i>
+								Ping every
+								<input type="number" min="1" max="60" class="w-12 rounded border border-neutral-300 bg-transparent px-1 py-0.5 text-center text-xs dark:border-neutral-700" x-model.number="pingInterval" @click.stop />
+								s
+							</button>
+							<button
+								type="button" class="h-9 w-full rounded-lg bg-neutral-900 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60 dark:bg-white dark:text-neutral-900" title="Save schedule" aria-label="Save schedule" :disabled="saving" @click="saveConfiguration()">
+							<span x-text="saving ? 'Saving…' : 'Save schedule'"></span>
+						</button>
+
+
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2 class="mb-4 text-base font-semibold tracking-tight">Per-server trend</h2>
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					<template x-for="server in enabledServers" :key="server.id + '-spark'">
+						<div class="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+							<div class="flex items-center justify-between gap-3">
+								<div>
+									<div class="text-sm font-medium" x-text="server.name"></div>
+									<div class="text-[11px] text-neutral-500 font-mono" x-text="server.host"></div>
+								</div>
+								<span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+									:class="server.status === 'online' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : (server.status === 'degraded' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400')"
+									x-text="server.status"></span>
+							</div>
+							<div class="mt-3 flex items-baseline gap-1.5">
+								<span class="font-mono text-2xl font-semibold" x-text="latestByServer(server.id).download"></span>
+								<span class="text-xs text-neutral-500">Mbps · DL</span>
+							</div>
+							<div class="mt-2 h-16 overflow-hidden rounded-lg py-1">
+								<div class="h-full w-full" x-init="registerSparklineHost(server.id, $el)"></div>
+							</div>
+							<div class="mt-1 grid grid-cols-3 gap-2 font-mono text-[11px]">
+								<div><span class="text-neutral-400">UL </span><span x-text="latestByServer(server.id).upload"></span></div>
+								<div><span class="text-neutral-400">Ping </span><span x-text="latestByServer(server.id).ping"></span></div>
+								<div><span class="text-neutral-400">Jit </span><span x-text="latestByServer(server.id).jitter"></span></div>
+							</div>
+						</div>
+					</template>
+				</div>
+			</section>
+
+			<footer class="mt-12 mb-8 border-t border-neutral-200/70 pt-4 pb-4 dark:border-neutral-800/70">
+				<div class="flex flex-col items-center justify-between gap-6 sm:flex-row sm:items-center">
+					<div class="flex flex-col items-center gap-3 sm:items-start sm:gap-2">
+						<div class="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+							<div class="flex items-center gap-2 text-neutral-900 dark:text-neutral-100 pr-2 border-r border-neutral-200 w-auto dark:border-neutral-700">
+								<img src="/icon-light.svg" class="h-4 w-4 opacity-90 dark:hidden" alt="" width="16" height="16" />
+								<img src="/icon-dark.svg" class="hidden h-4 w-4 opacity-90 dark:block" alt="" width="16" height="16" />
+								<span class="text-sm font-semibold tracking-tight">Velocity 9</span>
+								<span class="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">v1.0</span>
+							</div>
+
+							<div class="flex items-center gap-3 text-[11px] text-neutral-500 pl-1 dark:text-neutral-400">
+								<div class="flex items-center gap-1.5" title="Last server catalog sync">
+									<i data-lucide="database" class="h-3 w-3"></i>
+									<span class="font-mono" x-text="lastServerSync ? 'Last server catalog sync: ' + lastServerSync : 'Server catalog never synced'"></span>
+								</div>
+							</div>
+						</div>
+
+						<div class="text-[11px] text-neutral-500 dark:text-neutral-400 text-center sm:text-left">
+							Powered by <a href="https://www.speedtest.net" target="_blank" rel="noopener noreferrer" class="font-medium hover:text-neutral-800 transition-colors dark:hover:text-neutral-200">Speedtest.net</a> by <a href="https://www.ookla.com" target="_blank" rel="noopener noreferrer" class="font-medium hover:text-neutral-800 transition-colors dark:hover:text-neutral-200">Ookla</a>
+						</div>
+					</div>
+
+					<div class="w-full sm:w-auto mt-2 sm:mt-0">
+						<button
+							type="button"
+							class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-neutral-200/80 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 shadow-sm transition hover:bg-neutral-50 hover:text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-200 dark:border-neutral-700/80 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 dark:focus:ring-neutral-700 sm:w-auto"
+							@click="openSyncConfirm()"
+						>
+							<i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
+							Update Server List
+						</button>
+					</div>
+				</div>
+			</footer>
+		</main>
+
+		<div x-show="testModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 p-4 backdrop-blur-sm" @click="closeTestModal()">
+			<div class="w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900" role="dialog" aria-modal="true" aria-label="Speed test" @click.stop>
+				<div class="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-800">
+					<div>
+						<div class="text-sm font-semibold tracking-tight">Speed test</div>
+						<div class="text-[11px] text-neutral-500 dark:text-neutral-400">Live measurement against selected server</div>
+					</div>
+					<button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Close speed test" aria-label="Close speed test" @click="closeTestModal()">
+						<i data-lucide="x" class="h-4 w-4"></i>
+					</button>
+				</div>
+
+				<div class="px-6 pt-5">
+					<label class="text-[11px] font-medium uppercase tracking-wider text-neutral-500">Server</label>
+					<div class="relative mt-1.5" @click.outside="testServerDropdownOpen = false; testServerSearch = ''">
+						<button
+							type="button"
+							:disabled="testing"
+							@click="if (!testing) { testServerDropdownOpen = !testServerDropdownOpen; if (testServerDropdownOpen) $nextTick(() => $refs.serverSearch.focus()); }"
+							class="w-full flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-left focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-950 dark:focus:ring-white"
+							aria-haspopup="listbox"
+							:aria-expanded="testServerDropdownOpen"
+						>
+							<span class="truncate text-sm" x-text="currentTestServer()?.name || selectedTestServerId || 'Select a server…'"></span>
+							<i data-lucide="chevron-down" class="ml-2 h-4 w-4 shrink-0 text-neutral-400 transition-transform duration-150" :class="testServerDropdownOpen ? '-rotate-180' : ''"></i>
+						</button>
+						<div
+							x-show="testServerDropdownOpen"
+							x-transition:enter="transition ease-out duration-100"
+							x-transition:enter-start="opacity-0 -translate-y-1"
+							x-transition:enter-end="opacity-100 translate-y-0"
+							x-transition:leave="transition ease-in duration-75"
+							x-transition:leave-start="opacity-100 translate-y-0"
+							x-transition:leave-end="opacity-0 -translate-y-1"
+							class="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
+						>
+							<div class="flex items-center gap-2 border-b border-neutral-200 px-3 py-2 dark:border-neutral-700">
+								<i data-lucide="search" class="h-3.5 w-3.5 shrink-0 text-neutral-400"></i>
+								<input
+									x-ref="serverSearch"
+									x-model="testServerSearch"
+									type="text"
+									placeholder="Search servers…"
+									class="min-w-0 flex-1 bg-transparent text-sm placeholder-neutral-400 focus:outline-none dark:placeholder-neutral-600 dark:text-neutral-100"
+									@keydown.escape.prevent="testServerDropdownOpen = false; testServerSearch = ''"
+								>
+								<span class="shrink-0 text-xs text-neutral-400" x-text="filteredTestServers().length + ' shown'"></span>
+							</div>
+							<ul class="max-h-72 overflow-y-auto py-1" role="listbox">
+								<template x-for="server in filteredTestServers()" :key="server.server_id || server.host">
+									<li
+										role="option"
+										:aria-selected="(server.server_id || server.host) === selectedTestServerId"
+										@click="selectedTestServerId = server.server_id || server.host; testServerDropdownOpen = false; testServerSearch = ''"
+										class="flex cursor-pointer items-center gap-2.5 border-b border-neutral-100 px-3 py-2.5 last:border-b-0 hover:bg-neutral-50 dark:border-neutral-800/60 dark:hover:bg-neutral-800/50"
+										:class="(server.server_id || server.host) === selectedTestServerId ? 'bg-neutral-50 dark:bg-neutral-800/40' : ''"
+									>
+										<i x-show="(server.server_id || server.host) === selectedTestServerId" data-lucide="check" class="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i>
+										<span x-show="(server.server_id || server.host) !== selectedTestServerId" class="h-3.5 w-3.5 shrink-0"></span>
+										<div class="min-w-0 flex-1">
+											<div class="truncate text-sm font-medium" x-text="buildTestServerLabel(server)"></div>
+											<div class="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-neutral-400">
+												<span x-show="server.server_id" x-text="'ID ' + server.server_id"></span>
+												<span x-show="server.country || server.cc" x-text="server.country || server.cc"></span>
+											</div>
+										</div>
+									</li>
+								</template>
+								<li x-show="!filteredTestServers().length" class="px-3 py-4 text-center text-sm text-neutral-400">No servers match</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+
+				<div class="flex flex-col items-center px-6 pb-2 pt-6">
+					<svg viewBox="0 0 280 160" class="w-full max-w-sm">
+						<path
+							:d="testGaugePath()"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="10"
+							stroke-linecap="round"
+							class="text-neutral-200 dark:text-neutral-800"
+						></path>
+						<path
+							:d="testGaugePath()"
+							fill="none"
+							stroke="url(#gaugeGrad)"
+							stroke-width="10"
+							stroke-linecap="round"
+							class="gauge-progress"
+							:stroke-dasharray="testGaugeDasharray()"
+						></path>
+						<defs>
+							<linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+								<stop offset="0%" stop-color="#10b981"></stop>
+								<stop offset="60%" stop-color="#3b82f6"></stop>
+								<stop offset="100%" stop-color="#a855f7"></stop>
+							</linearGradient>
+						</defs>
+					</svg>
+					<div class="-mt-10 flex flex-col items-center">
+						<div class="text-[11px] font-medium uppercase tracking-wider text-neutral-500" x-text="testPhaseLabel()"></div>
+						<div class="mt-1 flex items-baseline gap-1.5">
+							<span class="font-mono tabular-nums text-5xl font-semibold tracking-tight" x-text="testDisplayValue()"></span>
+							<span class="text-sm text-neutral-500" x-text="testDisplayUnit()"></span>
+						</div>
+					</div>
+				</div>
+
+				<div class="px-6 pb-2">
+					<div class="grid grid-cols-3 gap-2 text-center">
+						<template x-for="metric in testMetricCards()" :key="metric.key">
+							<div class="rounded-lg border p-2.5 transition" :class="testMetricCardClass(metric.key)">
+								<div class="flex items-center justify-center gap-1.5 text-[10px] font-medium uppercase tracking-wider" :class="testMetricLabelClass(metric)">
+									<i :data-lucide="metric.icon" class="h-3.5 w-3.5"></i>
+									<span x-text="metric.label"></span>
+								</div>
+								<div class="mt-1 font-mono text-sm" :class="testMetricValueClass(metric.key)" x-text="metric.value"></div>
+							</div>
+						</template>
+					</div>
+					<div x-show="testIsRunning()" class="mt-3 h-1 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+						<div class="h-full bg-neutral-900 transition-all dark:bg-white" :style="`width:${testProgress}%`"></div>
+					</div>
+				</div>
+
+				<div x-show="testOutcome" class="mx-6 mb-2 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium" :class="testOutcome === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300'">
+					<i :data-lucide="testOutcome === 'success' ? 'check-circle-2' : 'x-circle'" class="h-4 w-4 shrink-0"></i>
+					<span x-text="testOutcome === 'success' ? `Done · ↓${testResult.download} Mbps ↑${testResult.upload} Mbps · ${testResult.ping} ms` : 'Test failed'"></span>
+				</div>
+				<div class="flex items-center justify-between gap-2 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
+					<div class="truncate font-mono text-[11px] text-neutral-500" x-text="currentTestServer() ? currentTestServer().host : '—'"></div>
+					<div class="flex items-center gap-2">
+						<button type="button" class="h-9 rounded-lg border border-neutral-200 px-3.5 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-800 dark:hover:bg-neutral-900" title="Close speed test" aria-label="Close speed test" @click="closeTestModal()">
+							Close
+						</button>
+						<button type="button" class="inline-flex h-9 items-center gap-2 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60 dark:bg-white dark:text-neutral-900" :disabled="testIsRunning() || !currentTestServer()" title="Start speed test" aria-label="Start speed test" @click="startSelectedTest()">
+							<i :data-lucide="testActionIcon()" class="h-4 w-4" :class="testIsRunning() ? 'animate-spin' : ''"></i>
+							<span x-text="testActionLabel()"></span>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div x-show="serverModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 p-4 backdrop-blur-sm" @click="closeServerModal()">
+			<div class="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900" role="dialog" aria-modal="true" aria-label="Add server" @click.stop>
+				<div class="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-800">
+					<div>
+						<div class="text-sm font-semibold tracking-tight">Add server</div>
+						<div class="text-[11px] text-neutral-500 dark:text-neutral-400" x-text="serverTab === 'catalog' ? 'Search the synced server catalog.' : 'Enter the Ookla server ID to add a custom server.'"></div>
+					</div>
+					<button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Close server picker" aria-label="Close server picker" @click="closeServerModal()">
+						<i data-lucide="x" class="h-4 w-4"></i>
+					</button>
+				</div>
+
+				<div class="flex border-b border-neutral-200 dark:border-neutral-800">
+					<button
+						type="button"
+						class="flex-1 px-6 py-2.5 text-xs font-medium transition border-b-2 -mb-px"
+						:class="serverTab === 'catalog' ? 'border-neutral-900 text-neutral-900 dark:border-white dark:text-white' : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:hover:text-white'"
+						@click="serverTab = 'catalog'"
+					>Catalog</button>
+					<button
+						type="button"
+						class="flex-1 px-6 py-2.5 text-xs font-medium transition border-b-2 -mb-px"
+						:class="serverTab === 'custom' ? 'border-neutral-900 text-neutral-900 dark:border-white dark:text-white' : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:hover:text-white'"
+						@click="serverTab = 'custom'; $nextTick(() => refreshIcons())"
+					>Custom server</button>
+				</div>
+
+				<div x-show="serverTab === 'catalog'" class="px-6 py-5">
+					<div class="relative">
+						<i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"></i>
+						<input
+							x-model="serverSearchQuery"
+							class="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:border-neutral-800 dark:bg-neutral-950 dark:focus:ring-white"
+							placeholder="Search by sponsor, location, country, ID"
+							aria-label="Search servers"
+						/>
+					</div>
+
+					<div class="mt-4 flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
+						<div x-show="catalogSearchLoading" class="flex items-center gap-1.5">
+							<i data-lucide="loader-2" class="h-3 w-3 animate-spin"></i>
+							<span>Searching…</span>
+						</div>
+						<div x-show="!catalogSearchLoading"><span x-text="filteredServerOptions.length"></span> result<span x-text="filteredServerOptions.length === 1 ? '' : 's'"></span></div>
+						<div><span x-text="servers.length"></span> selected for cron</div>
+					</div>
+
+					<div class="mt-4 max-h-[26rem] overflow-y-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+						<div x-show="!catalogSearchLoading && !filteredServerOptions.length" x-cloak class="px-4 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400">
+							No servers match your search.
+						</div>
+						<template x-for="server in filteredServerOptions" :key="`server-picker-${server.server_id}`">
+							<div class="flex items-center gap-3 border-b border-neutral-200 px-4 py-3 last:border-b-0 dark:border-neutral-800">
+								<div class="min-w-0 flex-1">
+									<div class="flex items-center gap-2">
+										<div class="truncate text-sm font-medium" x-text="buildServerName(server, server.server_id)"></div>
+										<span x-show="isServerSelected(server.server_id)" x-cloak class="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">Added</span>
+									</div>
+									<div class="mt-0.5 truncate font-mono text-xs text-neutral-500 dark:text-neutral-400" x-text="`ID ${server.server_id} · ${server.country || server.cc || '—'}`"></div>
+									<div class="mt-1 flex flex-wrap gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+										<span x-show="server.sponsor" x-cloak x-text="server.sponsor"></span>
+										<span x-show="server.name" x-cloak x-text="server.name"></span>
+									</div>
+								</div>
+								<button
+									type="button"
+									class="inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium transition"
+									:class="isServerSelected(server.server_id) ? 'cursor-default border border-neutral-200 text-neutral-400 dark:border-neutral-800 dark:text-neutral-500' : 'bg-neutral-900 text-white hover:opacity-90 dark:bg-white dark:text-neutral-900'"
+									:disabled="isServerSelected(server.server_id)"
+									@click="addServer(server.server_id)"
+								>
+									<span x-text="isServerSelected(server.server_id) ? 'Added' : 'Add'"></span>
+								</button>
+							</div>
+						</template>
+					</div>
+				</div>
+
+				<div x-show="serverTab === 'custom'" class="px-6 py-5">
+					<div class="rounded-xl border border-neutral-200 bg-neutral-50 p-5 dark:border-neutral-800 dark:bg-neutral-950">
+						<div class="mb-4 flex items-center gap-2 text-sm font-medium">
+							<i data-lucide="server" class="h-4 w-4 text-neutral-400"></i>
+							Add a custom Ookla server by ID
+						</div>
+						<div class="space-y-3">
+							<div>
+								<label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Ookla Server ID</label>
+								<input
+									x-model="customHost"
+									type="text"
+									placeholder="e.g. 44814"
+									class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:focus:ring-white"
+									@keydown.enter="addCustomServer()"
+								/>
+							</div>
+							<div>
+								<label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Name <span class="normal-case font-normal">(optional)</span></label>
+								<input
+									x-model="customName"
+									type="text"
+									placeholder="e.g. My preferred server"
+									class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:focus:ring-white"
+									@keydown.enter="addCustomServer()"
+								/>
+							</div>
+						</div>
+						<div class="mt-4">
+							<button
+								type="button"
+								class="inline-flex h-9 items-center gap-2 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+								:disabled="!customHost.trim() || customServerSaving"
+								@click="addCustomServer()"
+							>
+								<i :data-lucide="customServerSaving ? 'loader' : 'plus'" class="h-4 w-4" :class="customServerSaving ? 'animate-spin' : ''"></i>
+								<span x-text="customServerSaving ? 'Adding…' : 'Add server'"></span>
+							</button>
+						</div>
+					</div>
+					<p class="mt-4 text-[11px] text-neutral-500 dark:text-neutral-400">Custom servers are added by their Ookla server ID. Find IDs at <a href="https://www.speedtest.net" target="_blank" class="underline">speedtest.net</a> or in <code class="font-mono">servers.json</code>.</p>
+				</div>
+
+				<div x-show="serverTab === 'custom'" class="flex items-center justify-between gap-2 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
+					<div class="text-[11px] text-neutral-500 dark:text-neutral-400">Custom servers are added directly to your monitored list.</div>
+					<button type="button" class="h-9 rounded-lg border border-neutral-200 px-3.5 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-800 dark:hover:bg-neutral-900" @click="closeServerModal()">Done</button>
+				</div>
+
+				<div x-show="serverTab === 'catalog'" class="flex items-center justify-between gap-2 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
+					<div class="text-[11px] text-neutral-500 dark:text-neutral-400">Selected servers are used for cron auto-testing after you save the schedule.</div>
+					<button type="button" class="h-9 rounded-lg border border-neutral-200 px-3.5 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-800 dark:hover:bg-neutral-900" @click="closeServerModal()">Done</button>
+				</div>
+			</div>
+		</div>
+
+	<div x-show="historyModalOpen" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-950/60 p-4 backdrop-blur-sm" @click="closeHistoryModal()">
+		<div class="my-8 w-full max-w-5xl rounded-2xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900" role="dialog" aria-modal="true" aria-label="Server history" @click.stop>
+
+			<div class="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-800">
+				<div>
+					<div class="text-sm font-semibold tracking-tight" x-text="historyServer ? (historyServer.name || historyServer.host) : 'History'"></div>
+					<div class="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">
+						<span x-text="historyRows.length + ' result' + (historyRows.length === 1 ? '' : 's')"></span>
+						<template x-if="historyServer && historyServer.name && historyServer.host !== historyServer.name">
+							<span> · <span x-text="historyServer.host" class="font-mono"></span></span>
+						</template>
+					</div>
+				</div>
+				<button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Close" aria-label="Close" @click="closeHistoryModal()">
+					<i data-lucide="x" class="h-4 w-4"></i>
+				</button>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2 border-b border-neutral-200 px-6 py-3 dark:border-neutral-800">
+				<template x-for="range in [{l:'1h',v:'1h'},{l:'6h',v:'6h'},{l:'24h',v:'24h'},{l:'7d',v:'7d'},{l:'30d',v:'30d'},{l:'All',v:'all'},{l:'Custom',v:'custom'}]" :key="range.v">
+					<button
+						type="button"
+						class="rounded-md px-3 py-1 text-xs font-medium transition"
+						:class="historyRange === range.v ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900' : 'border border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800'"
+						@click="historyRange = range.v; if (range.v !== 'custom') loadHistory()"
+						x-text="range.l"
+					></button>
+				</template>
+				<div x-show="historyRange === 'custom'" class="flex flex-wrap items-center gap-2">
+					<input type="datetime-local" x-model="historyFrom" class="rounded-md border border-neutral-200 bg-transparent px-2 py-1 text-xs dark:border-neutral-700 dark:text-neutral-300 dark:[color-scheme:dark]" />
+					<span class="text-xs text-neutral-400">→</span>
+					<input type="datetime-local" x-model="historyTo" class="rounded-md border border-neutral-200 bg-transparent px-2 py-1 text-xs dark:border-neutral-700 dark:text-neutral-300 dark:[color-scheme:dark]" />
+					<button type="button" class="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white dark:bg-white dark:text-neutral-900" @click="loadHistory()">Apply</button>
+				</div>
+			</div>
+
+			<div class="px-6 pt-5 pb-2">
+				<div x-show="historyLoading" class="flex h-56 items-center justify-center">
+					<i data-lucide="loader-2" class="h-5 w-5 animate-spin text-neutral-400"></i>
+				</div>
+				<div x-show="!historyLoading && historyRows.length === 0" class="flex h-56 items-center justify-center rounded-xl border border-dashed border-neutral-200 dark:border-neutral-800">
+					<span class="text-sm text-neutral-500 dark:text-neutral-400">No data for this time range</span>
+				</div>
+				<div x-show="!historyLoading && historyRows.length > 0" class="h-56 overflow-hidden rounded-xl border border-neutral-200/70 dark:border-neutral-800/70">
+					<div class="h-full w-full" x-init="registerHistoryChartHost($el)"></div>
+				</div>
+			</div>
+
+			<div x-show="historyStats" class="grid grid-cols-3 gap-3 px-6 py-3">
+				<div class="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
+					<div class="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-500">Download</div>
+					<div class="flex items-baseline gap-1">
+						<span class="font-mono text-lg font-semibold text-emerald-600 dark:text-emerald-400" x-text="historyStats?.dlAvg"></span>
+						<span class="text-xs text-neutral-400">Mbps avg</span>
+					</div>
+					<div class="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">
+						<span x-text="'max ' + historyStats?.dlMax"></span> · <span x-text="'min ' + historyStats?.dlMin"></span>
+					</div>
+				</div>
+				<div class="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
+					<div class="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-500">Upload</div>
+					<div class="flex items-baseline gap-1">
+						<span class="font-mono text-lg font-semibold text-blue-600 dark:text-blue-400" x-text="historyStats?.ulAvg"></span>
+						<span class="text-xs text-neutral-400">Mbps avg</span>
+					</div>
+					<div class="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">
+						<span x-text="'max ' + historyStats?.ulMax"></span> · <span x-text="'min ' + historyStats?.ulMin"></span>
+					</div>
+				</div>
+				<div class="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
+					<div class="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-500">Ping</div>
+					<div class="flex items-baseline gap-1">
+						<span class="font-mono text-lg font-semibold text-amber-600 dark:text-amber-400" x-text="historyStats?.pingAvg"></span>
+						<span class="text-xs text-neutral-400">ms avg</span>
+					</div>
+					<div class="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">
+						<span x-text="'best ' + historyStats?.pingMin"></span> · <span x-text="'worst ' + historyStats?.pingMax"></span>
+					</div>
+				</div>
+			</div>
+
+			<div class="px-6 pb-6">
+				<div class="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
+					<div class="max-h-72 overflow-y-auto">
+						<table class="w-full text-xs">
+							<thead class="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950">
+								<tr>
+									<th class="px-4 py-2.5 text-left font-medium uppercase tracking-wider text-neutral-500">Time</th>
+									<th class="px-4 py-2.5 text-right font-medium uppercase tracking-wider text-neutral-500">Download</th>
+									<th class="px-4 py-2.5 text-right font-medium uppercase tracking-wider text-neutral-500">Upload</th>
+									<th class="px-4 py-2.5 text-right font-medium uppercase tracking-wider text-neutral-500">Ping</th>
+									<th class="px-4 py-2.5 text-right font-medium uppercase tracking-wider text-neutral-500">Jitter</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-neutral-100 dark:divide-neutral-800/60">
+								<template x-if="!historyRows.length && !historyLoading">
+									<tr><td colspan="5" class="px-4 py-8 text-center text-neutral-500">No results</td></tr>
+								</template>
+								<template x-for="row in historyRows.slice().reverse()" :key="row.id">
+									<tr class="bg-white transition hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-800/40">
+										<td class="px-4 py-2 font-mono text-neutral-600 dark:text-neutral-400" x-text="new Date(row.timestamp).toLocaleString()"></td>
+										<td class="px-4 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400" x-text="row.download_mbps != null ? Number(row.download_mbps).toFixed(1) + ' Mbps' : '—'"></td>
+										<td class="px-4 py-2 text-right font-mono text-blue-600 dark:text-blue-400" x-text="row.upload_mbps != null ? Number(row.upload_mbps).toFixed(1) + ' Mbps' : '—'"></td>
+										<td class="px-4 py-2 text-right font-mono text-amber-600 dark:text-amber-400" x-text="row.ping_latency != null ? Number(row.ping_latency).toFixed(1) + ' ms' : '—'"></td>
+										<td class="px-4 py-2 text-right font-mono text-neutral-500" x-text="row.ping_jitter != null ? Number(row.ping_jitter).toFixed(1) + ' ms' : '—'"></td>
+									</tr>
+								</template>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script type="module" src="/charts.js"></script>
+	<script type="module" src="/timeline.js"></script>
+
+
+		<div x-show="syncConfirmOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 p-4 backdrop-blur-sm" @click="closeSyncConfirm()">
+		<div class="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900" role="dialog" aria-modal="true" aria-label="Update server list" @click.stop>
+			<div class="flex items-start gap-4 px-6 pt-6 pb-4">
+				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-500/10">
+					<i data-lucide="refresh-cw" class="h-5 w-5 text-amber-600 dark:text-amber-400"></i>
+				</div>
+				<div>
+					<div class="text-sm font-semibold tracking-tight">Update server list?</div>
+					<p class="mt-1 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
+						This will fetch fresh server data from the Ookla API for all configured countries and replace the current catalog. The operation may take up to a minute.
+					</p>
+				</div>
+			</div>
+			<div class="flex items-center gap-2 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
+				<button
+					type="button"
+					class="flex-1 h-9 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800"
+					:disabled="syncInProgress"
+					@click="closeSyncConfirm()"
+				>Cancel</button>
+				<button
+					type="button"
+					class="flex-1 h-9 rounded-lg bg-neutral-900 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60 dark:bg-white dark:text-neutral-900"
+					:disabled="syncInProgress"
+					@click="forceServerSync()"
+				>
+					<span x-show="!syncInProgress">Update now</span>
+					<span x-show="syncInProgress" class="flex items-center justify-center gap-1.5">
+						<i data-lucide="loader-2" class="h-3.5 w-3.5 animate-spin"></i>
+						Fetching…
+					</span>
+				</button>
+			</div>
+		</div>
+	</div>
+
+		<div class="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-2 pointer-events-none" aria-live="polite">
+			<template x-for="toast in toasts" :key="toast.id">
+				<div class="pointer-events-auto flex min-w-64 max-w-xs items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg" :class="toast.type === 'error' ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/90 dark:text-red-300' : toast.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/90 dark:text-emerald-300' : 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/90 dark:text-blue-300'">
+					<i :data-lucide="toast.type === 'error' ? 'alert-circle' : toast.type === 'success' ? 'check-circle-2' : 'info'" class="mt-0.5 h-4 w-4 shrink-0"></i>
+					<span class="flex-1" x-text="toast.message"></span>
+					<button @click="dismissToast(toast.id)" class="shrink-0 opacity-60 hover:opacity-100">
+						<i data-lucide="x" class="h-3.5 w-3.5"></i>
+					</button>
+				</div>
+			</template>
+		</div>
+</body>
+</html>

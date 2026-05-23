@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+[x-cloak] {
+	display: none !important;
+}
+html, body {
+	min-height: 100%;
+}
+body {
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+.tooltip-shadow {
+	box-shadow: 0 12px 35px rgba(15, 23, 42, 0.12);
+}
+.gauge-progress {
+	transition: stroke-dasharray 120ms linear;
+}
+.vis-item.outage-item {
+	background-color: rgba(239, 68, 68, 0.15);
+	border-color: #ef4444;
+	border-width: 2px;
+	border-radius: 4px;
+	color: #dc2626;
+}
+.vis-item.outage-item.vis-selected {
+	background-color: rgba(239, 68, 68, 0.25);
+}
+.vis-tt {
+	padding: 6px 10px;
+	font-size: 12px;
+	line-height: 1.7;
+}
+.vis-tt-title {
+	font-weight: 600;
+	margin-bottom: 2px;
+}
+.vis-timeline {
+	border: none !important;
+	font-family: inherit;
+}
+.vis-panel.vis-center,
+.vis-panel.vis-left,
+.vis-panel.vis-right,
+.vis-panel.vis-top,
+.vis-panel.vis-bottom {
+	border-color: transparent !important;
+}
+.vis-time-axis .vis-grid.vis-minor {
+	border-color: #f1f5f9;
+}
+.vis-time-axis .vis-grid.vis-major {
+	border-color: #e2e8f0;
+}
+.vis-time-axis .vis-text {
+	color: #94a3b8;
+	font-size: 11px;
+}
+.vis-current-time {
+	background-color: #94a3b8;
+	width: 1px;
+}
+.dark .vis-timeline {
+	background: transparent;
+}
+.dark .vis-time-axis .vis-grid.vis-minor {
+	border-color: #1a1a1a;
+}
+.dark .vis-time-axis .vis-grid.vis-major {
+	border-color: #262626;
+}
+.dark .vis-time-axis .vis-text {
+	color: #525252;
+}
+.dark .vis-foreground {
+	background: transparent;
+}
+.dark .vis-current-time {
+	background-color: #525252;
+}
+.dark .vis-item.outage-item {
+	background-color: rgba(239, 68, 68, 0.2);
+	border-color: #ef4444;
+	color: #fca5a5;
+}
+.dark .vis-item.outage-item.vis-selected {
+	background-color: rgba(239, 68, 68, 0.35);
+}
+.dark .vis-tooltip {
+	background: #171717;
+	border-color: #262626;
+	color: #d4d4d4;
+}
