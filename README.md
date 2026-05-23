@@ -142,7 +142,6 @@ If you're exploring the codebase, here's where everything lives:
 │   ├── timeline.js     # vis-timeline for plotting outages
 │   └── style.css       # Tailwind utility classes and overrides
 ├── public/             # Vite's final build output (served by Express)
-├── iperf/win/          # Legacy iperf3 binaries (currently unused)
 ├── ecosystem.config.js # Config for pm2
 └── setup.sh            # The magic one-shot production setup script
 ```
