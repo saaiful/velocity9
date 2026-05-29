@@ -1,10 +1,13 @@
 'use strict';
 
 const cron = require('node-cron');
-const { runTest } = require('./speedtest');
+const { runTest, isTestRunning } = require('./speedtest');
 const { saveResult, getSetting, setSetting, getScheduledServers } = require('./db');
 const { syncServers, needsSync } = require('./server-sync');
 const broadcaster = require('./broadcaster');
+
+// Deadline slightly longer than the per-test timeout so the kill inside runTest fires first
+const SCHEDULER_TEST_DEADLINE_MS = (parseInt(process.env.SPEEDTEST_TIMEOUT_MS, 10) || 5 * 60 * 1000) + 15_000;
 
 let currentTask = null;
 
@@ -54,7 +57,19 @@ function scheduleTask(cronExpression) {
           } else {
             console.log(`[scheduler] Testing Ookla server ${server_id}…`);
           }
-          const result = await runTest({ serverId: server_id });
+
+          // Outer deadline: if runTest's own cancel somehow doesn't fire, force-resolve here
+          let deadlineHandle;
+          const deadlinePromise = new Promise((_, reject) => {
+            deadlineHandle = setTimeout(() => {
+              console.error(`[scheduler] Outer deadline hit for server ${server_id} — forcing isRunning reset`);
+              reject(new Error(`Scheduler outer deadline exceeded for server ${server_id}`));
+            }, SCHEDULER_TEST_DEADLINE_MS);
+          });
+
+          const result = await Promise.race([runTest({ serverId: server_id }), deadlinePromise])
+            .finally(() => clearTimeout(deadlineHandle));
+
           const id = saveResult(result);
           console.log(`[scheduler] ${server_id} → result #${id} (↓${result.download_mbps} ↑${result.upload_mbps} Mbps)`);
           broadcaster.emit('test-complete', { serverId: server_id, resultId: id });

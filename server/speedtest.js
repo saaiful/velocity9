@@ -2,10 +2,13 @@
 
 const { EventEmitter } = require('events');
 const speedTest = require('speedtest-net');
+const { makeCancel } = require('speedtest-net');
 const { getServers } = require('./db');
 
 const testEvents = new EventEmitter();
 testEvents.setMaxListeners(50);
+
+const TEST_TIMEOUT_MS = parseInt(process.env.SPEEDTEST_TIMEOUT_MS, 10) || 5 * 60 * 1000; // 5 min default
 
 let isRunning = false;
 
@@ -38,6 +41,8 @@ async function runTest({ serverId } = {}) {
   isRunning = true;
   let detectedIsp = null;
   let detectedServer = null;
+  const cancel = makeCancel();
+  let timeoutHandle;
 
   try {
     testEvents.emit('start', { server: { name: serverName, id: targetServerId } });
@@ -45,10 +50,18 @@ async function runTest({ serverId } = {}) {
     testEvents.emit('download', { bandwidth_mbps: null, progress: 0 });
     testEvents.emit('upload',   { bandwidth_mbps: null, progress: 0 });
 
-    const result = await speedTest({
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        cancel();
+        reject(new Error(`Speed test timed out after ${TEST_TIMEOUT_MS / 60000} minute(s) — process killed`));
+      }, TEST_TIMEOUT_MS);
+    });
+
+    const result = await Promise.race([speedTest({
       serverId: targetServerId,
       acceptLicense: true,
       acceptGdpr: true,
+      cancel,
       progress(data) {
         if (data.type === 'testStart') {
           detectedIsp    = data.isp;
@@ -76,7 +89,7 @@ async function runTest({ serverId } = {}) {
           });
         }
       },
-    });
+    }), timeoutPromise]);
 
     const download_mbps = +(result.download.bandwidth / 125000).toFixed(2);
     const upload_mbps   = +(result.upload.bandwidth   / 125000).toFixed(2);
@@ -111,6 +124,7 @@ async function runTest({ serverId } = {}) {
     testEvents.emit('error', { message: err.message });
     throw err;
   } finally {
+    clearTimeout(timeoutHandle);
     isRunning = false;
   }
 }
